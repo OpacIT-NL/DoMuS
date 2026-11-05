@@ -1,0 +1,36 @@
+{
+  "name": "domus",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node server/index.js",
+    "migrate": "node scripts/migrate.js",
+    "admin": "node scripts/admin.js",
+    "test": "node --test",
+    "check": "node --check server/index.js && node --check public/app.js && node --check desktop/main.cjs && node --check server/config.js && node --check server/console.js && node --check server/terminal.js && node --check scripts/cli.js",
+    "cli": "node scripts/cli.js",
+    "package:server": "node scripts/package-server.js"
+  },
+  "dependencies": {
+    "@kenjiuno/msgreader": "^1.23.0",
+    "argon2": "^0.41.1",
+    "cookie-parser": "^1.4.7",
+    "express": "^5.1.0",
+    "express-rate-limit": "^7.5.0",
+    "helmet": "^8.1.0",
+    "imapflow": "^1.0.181",
+    "mailparser": "^3.7.2",
+    "multer": "^2.0.2",
+    "mysql2": "^3.14.0",
+    "nodemailer": "^10.3.1",
+    "ws": "^8.18.0",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "fflate": "^0.8.3"
+  }
+}

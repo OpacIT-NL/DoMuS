@@ -1,0 +1,34 @@
+name: Desktop packages
+on: workflow_dispatch
+jobs:
+  package:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: desktop/package-lock.json
+      - name: Linux build dependencies
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y flatpak flatpak-builder elfutils binutils desktop-file-utils zstd
+      - run: npm ci
+        working-directory: desktop
+      - run: npm run build:linux -- --publish never
+        if: runner.os == 'Linux'
+        working-directory: desktop
+      - run: npm run build:windows -- --publish never
+        if: runner.os == 'Windows'
+        working-directory: desktop
+      - uses: actions/upload-artifact@v4
+        with:
+          name: domus-${{ runner.os }}
+          path: |
+            desktop/dist/*.deb
+            desktop/dist/*.flatpak
+            desktop/dist/*.exe
+          if-no-files-found: error

@@ -1,0 +1,55 @@
+{
+  "name": "domus-desktop",
+  "version": "0.1.0",
+  "description": "DoMuS documentopener voor SMB-shares",
+  "author": {
+    "name": "DoMuS",
+    "email": "maintainers@example.invalid"
+  },
+  "private": true,
+  "main": "main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "build:linux": "electron-builder --linux deb flatpak",
+    "build:windows": "electron-builder --win nsis"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "electron": "^37.0.0",
+    "electron-builder": "^26.0.12"
+  },
+  "build": {
+    "appId": "nl.domus.desktop",
+    "productName": "DoMuS Desktop",
+    "files": [
+      "main.cjs",
+      "preload.cjs",
+      "renderer.js",
+      "index.html",
+      "path.cjs"
+    ],
+    "linux": {
+      "target": [
+        "deb",
+        "flatpak"
+      ],
+      "category": "Office",
+      "maintainer": "DoMuS <maintainers@example.invalid>"
+    },
+    "flatpak": {
+      "finishArgs": [
+        "--share=network",
+        "--socket=x11",
+        "--socket=wayland",
+        "--share=ipc",
+        "--device=dri"
+      ]
+    },
+    "win": {
+      "target": "nsis"
+    },
+    "artifactName": "domus-desktop-${version}-${os}-${arch}.${ext}"
+  }
+}

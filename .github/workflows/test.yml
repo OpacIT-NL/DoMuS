@@ -1,0 +1,29 @@
+name: Test
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        database: ["mysql:8.4", "mariadb:11.4"]
+    services:
+      db:
+        image: ${{ matrix.database }}
+        env:
+          MYSQL_DATABASE: domus_test
+          MYSQL_ROOT_PASSWORD: test-password
+        ports: ["3306:3306"]
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -ptest-password || mariadb-admin ping -h 127.0.0.1 -ptest-password"
+          --health-interval=5s --health-timeout=5s --health-retries=30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+      - run: npm test
+        env:
+          TEST_DATABASE_URL: mysql://root:test-password@127.0.0.1:3306/domus_test

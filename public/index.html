@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="nl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>DoMuS · Dossierbeheer</title>
+    <link rel="stylesheet" href="/style.css" />
+    <script defer src="/app.js"></script>
+  </head>
+  <body>
+    <aside>
+      <a class="brand" href="/">D<span>o</span>MuS<span class="dot">.</span></a>
+      <p class="subtitle">DOCUMENTEN & DOSSIERS</p>
+      <nav id="nav"></nav>
+      <div class="sidebar-foot">
+        Alles op zijn plek.<br /><small>Jouw digitale dossierkast.</small>
+      </div>
+    </aside>
+    <main>
+      <header>
+        <span>WERKOMGEVING / <b id="crumb">OVERZICHT</b></span>
+        <div id="account"></div>
+      </header>
+      <div id="notice" role="status" aria-live="polite"></div>
+      <section id="content"></section>
+    </main>
+    <dialog id="dialog">
+      <form id="modal">
+        <div class="modal-head">
+          <h2 id="modal-title"></h2>
+          <button type="button" id="close" aria-label="Sluiten">×</button>
+        </div>
+        <div id="modal-fields"></div>
+        <p id="modal-error" role="alert"></p>
+        <button class="primary" type="submit">Opslaan</button>
+      </form>
+    </dialog>
+  </body>
+</html>
