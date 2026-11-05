@@ -36,7 +36,8 @@
         "flatpak"
       ],
       "category": "Office",
-      "maintainer": "DoMuS <maintainers@example.invalid>"
+      "maintainer": "DoMuS <maintainers@example.invalid>",
+      "syncDesktopName": true
     },
     "flatpak": {
       "finishArgs": [
@@ -51,5 +52,12 @@
       "target": "nsis"
     },
     "artifactName": "domus-desktop-${version}-${os}-${arch}.${ext}"
-  }
+  },
+  "homepage": "https://github.com/OpacIT-NL/DoMuS",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/OpacIT-NL/DoMuS.git",
+    "directory": "desktop"
+  },
+  "desktopName": "nl.domus.desktop.desktop"
 }
