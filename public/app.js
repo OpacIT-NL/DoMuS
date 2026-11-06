@@ -4,7 +4,9 @@ let me,
   current,
   view,
   filter = "",
-  rows = [];
+  rows = [],
+  selectedVersionId = null,
+  selectedEmailId = null;
 const esc = (v) =>
   String(v ?? "").replace(
     /[&<>"']/g,
@@ -73,21 +75,21 @@ function modal(title, html, save) {
 }
 $("#close").onclick = () => $("#dialog").close();
 function heading(title, sub, action = "") {
-  return `<div class="heading"><div><div class="eyebrow">DoMuS / werkruimte</div><h1>${esc(title)}</h1><p class="muted">${esc(sub)}</p></div>${action}</div>`;
+  return `<div class="heading"><div><div class="eyebrow">DoMuS · werkruimte</div><h1>${esc(title)}</h1><p class="muted">${esc(sub)}</p></div>${action}</div>`;
 }
 async function start() {
   try {
     me = await api("/me");
     view = me.default_view;
     $("#account").innerHTML =
-      `${esc(me.username)} &nbsp; <button id="logout">Uitloggen</button>`;
+      `<span class="user-chip">${esc(me.username).slice(0, 1).toUpperCase()}</span><span>${esc(me.username)}</span><button id="logout" class="quiet">Uitloggen</button>`;
     $("#logout").onclick = async () => {
       await api("/logout", "POST");
       location.reload();
     };
     $("#nav").innerHTML =
-      '<button data-page="cases">Dossiers</button><button data-page="clients">CRM</button><button data-page="preferences">Voorkeuren</button>' +
-      (me.admin ? '<button data-page="admin">Beheer</button>' : "");
+      '<button data-page="cases"><span>▣</span>Dossiers</button><button data-page="clients"><span>◎</span>Relaties</button><button data-page="preferences"><span>⚙</span>Voorkeuren</button>' +
+      (me.admin ? '<button data-page="admin"><span>◇</span>Beheer</button>' : "");
     on("[data-page]", "click", (_, el) => navigate(el.dataset.page));
     await navigate("cases");
   } catch (e) {
@@ -106,6 +108,7 @@ function login() {
 }
 async function navigate(page) {
   notice("");
+  if (page !== "cases") current = null;
   $("#crumb").textContent = page.toUpperCase();
   document
     .querySelectorAll("[data-page]")
@@ -129,7 +132,7 @@ async function cases(q = "") {
       data
         .map(
           (c) =>
-            `<tr><td class="number">${esc(c.number)}</td><td><strong>${esc(c.title)}</strong></td><td>${esc(c.client)}</td><td><span class="tag">${c.parent_id ? "Subdossier" : "Hoofddossier"}</span></td><td><button data-case="${c.id}">Openen →</button></td></tr>`,
+            `<tr data-case-row="${c.id}" tabindex="0"><td class="number">${esc(c.number)}</td><td><strong>${esc(c.title)}</strong></td><td>${esc(c.client)}</td><td><span class="tag">${c.parent_id ? "Subdossier" : "Hoofddossier"}</span></td><td><button data-case="${c.id}">Openen →</button></td></tr>`,
         )
         .join(""),
     );
@@ -138,6 +141,12 @@ async function cases(q = "") {
     return cases(new FormData(e.target).get("q"));
   });
   on("[data-case]", "click", (_, el) => openCase(el.dataset.case));
+  on("[data-case-row]", "dblclick", (_, el) =>
+    openCase(el.dataset.caseRow),
+  );
+  on("[data-case-row]", "keydown", (event, el) => {
+    if (event.key === "Enter") return openCase(el.dataset.caseRow);
+  });
   on("#new-case", "click", () => newCase());
 }
 async function newCase(parent) {
@@ -214,28 +223,27 @@ async function clients() {
 async function openCase(id) {
   current = await api("/cases/" + id);
   filter = "";
+  selectedVersionId = null;
+  selectedEmailId = null;
   await drawCase();
 }
 const has = (p) => current.permissions.includes(p);
 async function drawCase() {
   const c = current;
+  $("#crumb").textContent = `${c.number} / ${c.title}`.toUpperCase();
   content.innerHTML =
-    heading(
-      c.title,
-      `${c.number} · ${c.client}`,
-      `<div class="toolbar"><button id="back">← Dossiers</button>${has("case.write") ? '<button id="renumber">Nummer wijzigen</button>' + (!c.parent_id ? '<button id="subcase">+ Subdossier</button>' : "") : ""}</div>`,
-    ) +
-    `<div class="tabs">${[
+    `<div class="case-caption"><button id="back" class="back-button" title="Terug naar dossiers">‹</button><div><span class="number">${esc(c.number)}</span><h1>${esc(c.title)}</h1><p>${esc(c.client)}</p></div><div class="case-actions">${has("case.write") ? '<button id="renumber">Dossier wijzigen</button>' + (!c.parent_id ? '<button id="subcase">+ Subdossier</button>' : "") : ""}</div></div>` +
+    `<div class="tabs subfunctions" role="tablist">${[
       ["manager", "Document Manager"],
-      ["explorer", "Document Verkenner"],
-      ["metadata", "Dossiermetadata"],
-      ["emails", "E-mails"],
+      ["explorer", "Dossier Verkenner"],
+      ["metadata", "Algemeen"],
+      ["emails", "Correspondentie"],
     ]
       .map(
         ([v, l]) =>
-          `<button data-view="${v}" class="${view === v ? "selected" : ""}">${l}</button>`,
+          `<button role="tab" aria-selected="${view === v}" data-view="${v}" class="${view === v ? "selected" : ""}">${l}</button>`,
       )
-      .join("")}</div><div id="case-body"></div>`;
+      .join("")}</div><div id="case-body" class="case-body"></div>`;
   on("#back", "click", () => cases());
   on("#subcase", "click", () => newCase(c));
   on("#renumber", "click", () =>
@@ -281,10 +289,38 @@ async function documents() {
         ? r.tags.includes(filter)
         : current.folders.find((f) => String(f.id) === filter)?.path === r.path,
     );
-  target.innerHTML = `<div class="toolbar">${has("document.write") ? '<button id="upload" class="primary">+ Document uploaden</button><button id="folder">+ Map</button>' : ""}<span class="muted">${manager ? "Eén document, alle versies bij elkaar." : "Elke versie als afzonderlijk bestand."}</span></div><div class="split"><div class="filter"><div class="eyebrow">${manager ? "Categorieën" : "Mappen"}</div><button data-filter="" class="${!filter ? "selected" : ""}">Alles</button>${groups.map(([id, l]) => `<button data-filter="${esc(id)}" class="${filter === id ? "selected" : ""}">${esc(l)}</button>`).join("")}</div><div>${table(["BESTAND", "MAP / CATEGORIE", "VERSIE", ""], shown.map((r) => `<tr><td><strong>${esc(manager ? r.title : r.filename)}</strong><div class="muted small">${Math.ceil(r.size / 1024)} KB</div></td><td>${esc(r.path)}<br>${r.tags.map((t) => `<span class="tag">${esc(t)}</span>`).join("")}</td><td>v${r.version}</td><td><a class="button" href="/api/versions/${r.id}/download">Download</a> ${has("document.open") ? `<button data-open="${r.id}">Open lokaal</button>` : ""} ${has("document.write") ? `<button data-version="${r.document_id}">+ Versie</button>` : ""}</td></tr>`).join(""))}</div></div>`;
+  if (!shown.some((row) => row.id === selectedVersionId))
+    selectedVersionId = shown[0]?.id ?? null;
+  const selected = shown.find((row) => row.id === selectedVersionId),
+    history = selected
+      ? rows.filter((row) => row.document_id === selected.document_id)
+      : [];
+  const tree = `<aside class="workspace-tree" aria-label="Dossierstructuur"><div class="tree-title"><span class="tree-case-icon">D</span><div><strong>${esc(current.number)}</strong><small>${esc(current.title)}</small></div></div><button data-tree-view="metadata">▾ Dossiergegevens</button><div class="tree-group"><button data-tree-view="${manager ? "manager" : "explorer"}" class="tree-parent selected">▾ Documenten</button><button data-filter="" class="tree-child ${!filter ? "selected" : ""}">Alle documenten <span>${shown.length}</span></button>${groups.map(([id, label]) => `<button data-filter="${esc(id)}" class="tree-child ${filter === id ? "selected" : ""}">▻ ${esc(label)}</button>`).join("")}</div><button data-tree-view="emails">▸ Correspondentie</button></aside>`;
+  const list = shown.length
+    ? `<div class="table-wrap document-table"><table><thead><tr><th>NAAM</th><th>${manager ? "CATEGORIE" : "MAP"}</th><th>GEWIJZIGD</th><th>VERSIE</th></tr></thead><tbody>${shown.map((row) => `<tr tabindex="0" data-document="${row.id}" class="${row.id === selectedVersionId ? "selected-row" : ""}"><td><span class="file-icon">${esc((row.filename.split(".").pop() || "DOC").slice(0, 4).toUpperCase())}</span><strong>${esc(manager ? row.title : row.filename)}</strong><small>${Math.ceil(row.size / 1024)} KB</small></td><td>${manager ? row.tags.map((tag) => `<span class="tag">${esc(tag)}</span>`).join("") || '<span class="muted">Niet geclassificeerd</span>' : esc(row.path)}</td><td>${new Date(row.created_at).toLocaleDateString("nl-NL")}</td><td>v${row.version}</td></tr>`).join("")}</tbody></table></div>`
+    : '<div class="empty document-empty">Geen documenten in deze selectie.</div>';
+  const inspector = selected
+    ? `<aside class="inspector"><div class="inspector-head"><span class="file-preview-icon">${esc((selected.filename.split(".").pop() || "DOC").slice(0, 4).toUpperCase())}</span><div><strong>${esc(manager ? selected.title : selected.filename)}</strong><small>Versie ${selected.version}</small></div></div><dl><dt>Map</dt><dd>${esc(selected.path)}</dd><dt>Grootte</dt><dd>${Math.ceil(selected.size / 1024)} KB</dd><dt>Categorieën</dt><dd>${selected.tags.map((tag) => `<span class="tag">${esc(tag)}</span>`).join("") || "—"}</dd></dl><div class="inspector-actions"><a class="button primary" href="/api/versions/${selected.id}/download">Downloaden</a>${has("document.open") ? `<button data-open="${selected.id}">Open lokaal</button>` : ""}${has("document.write") ? `<button data-version="${selected.document_id}">Nieuwe versie</button>` : ""}</div>${manager && history.length > 1 ? `<div class="version-list"><h3>Versiehistorie</h3>${history.map((item) => `<button data-document="${item.id}" class="${item.id === selected.id ? "active" : ""}"><span>v${item.version}</span>${esc(item.filename)}</button>`).join("")}</div>` : ""}</aside>`
+    : '<aside class="inspector empty-inspector"><strong>Geen document geselecteerd</strong><p>Selecteer een document om de eigenschappen en acties te zien.</p></aside>';
+  target.innerHTML = `<div class="commandbar"><div>${has("document.write") ? '<button id="upload" class="primary">＋ Nieuw document</button><button id="folder">＋ Map</button>' : ""}</div><div class="commandbar-info"><span>F4</span>${manager ? "Documenten per categorie" : "Bestanden per map en versie"}</div></div><div class="dossier-workspace">${tree}<section class="data-pane document-dropzone"><div class="drop-overlay" aria-hidden="true"><span>⇩</span><strong>Drop to upload</strong><small>Laat los om de bestanden te classificeren</small></div><div class="pane-title"><div><strong>${filter ? esc(groups.find(([id]) => id === filter)?.[1] || filter) : "Alle documenten"}</strong><small>${shown.length} ${shown.length === 1 ? "resultaat" : "resultaten"}</small></div><span class="drop-message">Sleep bestanden hierheen</span></div>${list}</section>${inspector}</div>`;
   on("[data-filter]", "click", (_, el) => {
     filter = el.dataset.filter;
     return documents();
+  });
+  on("[data-tree-view]", "click", async (_, el) => {
+    view = el.dataset.treeView;
+    filter = "";
+    await drawCase();
+  });
+  on("[data-document]", "click", (_, el) => {
+    selectedVersionId = Number(el.dataset.document);
+    return documents();
+  });
+  on("[data-document]", "keydown", (event, el) => {
+    if (event.key === "Enter") {
+      selectedVersionId = Number(el.dataset.document);
+      return documents();
+    }
   });
   on("#folder", "click", () =>
     modal(
@@ -297,10 +333,24 @@ async function documents() {
       },
     ),
   );
-  function upload(doc) {
+  function upload(doc, droppedFiles = []) {
+    let queuedFiles = [...droppedFiles];
+    const droppedSummary = queuedFiles.length
+      ? `<div class="drop-file-list"><strong>${queuedFiles.length} ${queuedFiles.length === 1 ? "bestand" : "bestanden"} geselecteerd</strong><ul>${queuedFiles
+          .slice(0, 8)
+          .map(
+            (file) =>
+              `<li><span>${esc(file.name)}</span><small>${Math.ceil(file.size / 1024)} KB</small></li>`,
+          )
+          .join("")}</ul>${queuedFiles.length > 8 ? `<small>En nog ${queuedFiles.length - 8} bestanden…</small>` : ""}</div>`
+      : "";
     modal(
-      doc ? "Nieuwe documentversie" : "Document uploaden",
-      field("file", "Bestand", "file") +
+      doc
+        ? "Nieuwe documentversie"
+        : queuedFiles.length > 1
+          ? `${queuedFiles.length} documenten uploaden`
+          : "Document uploaden",
+      (queuedFiles.length ? droppedSummary : field("file", "Bestand", "file")) +
         (doc
           ? ""
           : select(
@@ -309,20 +359,51 @@ async function documents() {
               current.folders.map((f) => [f.id, f.path]),
             ) + field("tags", "Categorieën, gescheiden door komma’s")),
       async (b, form) => {
-        const data = new FormData(form);
-        if (doc) data.set("document_id", doc);
-        else
-          data.set(
-            "tags",
-            JSON.stringify(
-              b.tags
-                .split(",")
-                .map((t) => t.trim())
-                .filter(Boolean),
-            ),
-          );
-        await api(`/cases/${current.id}/documents`, "POST", data);
+        const selectedFiles = queuedFiles.length
+          ? [...queuedFiles]
+          : [new FormData(form).get("file")];
+        if (!selectedFiles[0]?.name) throw Error("Selecteer minimaal één bestand.");
+        const tooLarge = selectedFiles.find(
+          (file) => file.size > 25 * 1024 * 1024,
+        );
+        if (tooLarge)
+          throw Error(`${tooLarge.name} is groter dan de uploadlimiet van 25 MiB.`);
+        const tags = doc
+          ? []
+          : b.tags
+              .split(",")
+              .map((tag) => tag.trim())
+              .filter(Boolean);
+        let completed = 0;
+        try {
+          for (const file of selectedFiles) {
+            notice(
+              `${file.name} uploaden (${completed + 1} van ${selectedFiles.length})…`,
+            );
+            const data = new FormData();
+            data.set("file", file, file.name);
+            if (doc) data.set("document_id", doc);
+            else {
+              data.set("folder_id", b.folder_id);
+              data.set("tags", JSON.stringify(tags));
+            }
+            await api(`/cases/${current.id}/documents`, "POST", data);
+            completed++;
+            if (queuedFiles.length) queuedFiles.shift();
+          }
+        } catch (error) {
+          if (completed) {
+            await documents();
+            throw Error(
+              `${completed} ${completed === 1 ? "bestand is" : "bestanden zijn"} toegevoegd. ${queuedFiles.length} resterend; probeer opnieuw. ${error.message}`,
+            );
+          }
+          throw error;
+        }
         await documents();
+        notice(
+          `${completed} ${completed === 1 ? "bestand" : "bestanden"} toegevoegd.`,
+        );
       },
     );
   }
@@ -332,11 +413,43 @@ async function documents() {
     await api("/versions/" + el.dataset.open + "/open", "POST");
     notice("Openverzoek naar de desktopclient gestuurd.");
   });
+  const dropzone = $(".document-dropzone");
+  if (dropzone && has("document.write")) {
+    let dragDepth = 0;
+    dropzone.addEventListener("dragenter", (e) => {
+      e.preventDefault();
+      dragDepth++;
+      dropzone.classList.add("dragging");
+    });
+    dropzone.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "copy";
+    });
+    dropzone.addEventListener("dragleave", (e) => {
+      e.preventDefault();
+      if (--dragDepth <= 0) {
+        dragDepth = 0;
+        dropzone.classList.remove("dragging");
+      }
+    });
+    dropzone.addEventListener("drop", (e) => {
+      e.preventDefault();
+      dragDepth = 0;
+      dropzone.classList.remove("dragging");
+      const files = [...e.dataTransfer.files];
+      if (!files.length) return;
+      if (files.length > 50) {
+        notice("Sleep maximaal 50 bestanden tegelijk naar het dossier.");
+        return;
+      }
+      upload(null, files);
+    });
+  }
 }
 function metadata() {
   const fields = current.fields;
   $("#case-body").innerHTML =
-    `<div class="card"><h2>Dossiermetadata</h2><form id="metadata">${
+    `<div class="dossier-workspace metadata-workspace"><aside class="workspace-tree"><div class="tree-title"><span class="tree-case-icon">D</span><div><strong>${esc(current.number)}</strong><small>${esc(current.title)}</small></div></div><button class="selected">▾ Dossiergegevens</button><button data-tree-view="manager">▸ Documenten</button><button data-tree-view="emails">▸ Correspondentie</button></aside><div class="card metadata-card"><div class="pane-title"><div><strong>Algemene dossiergegevens</strong><small>Velden die bij dit dossier horen</small></div></div><form id="metadata">${
       fields.length
         ? fields
             .map((f) =>
@@ -359,7 +472,11 @@ function metadata() {
             )
             .join("")
         : '<p class="muted">Een beheerder kan hier velden toevoegen via Beheer.</p>'
-    }${has("metadata.write") ? '<button class="primary">Metadata opslaan</button>' : ""}</form></div>`;
+    }${has("metadata.write") ? '<button class="primary">Metadata opslaan</button>' : ""}</form></div><aside class="inspector case-summary"><h3>Dossier</h3><dl><dt>Nummer</dt><dd class="number">${esc(current.number)}</dd><dt>Omschrijving</dt><dd>${esc(current.title)}</dd><dt>Relatie</dt><dd>${esc(current.client)}</dd><dt>Type</dt><dd>${current.parent_id ? "Subdossier" : "Hoofddossier"}</dd></dl></aside></div>`;
+  on("[data-tree-view]", "click", async (_, el) => {
+    view = el.dataset.treeView;
+    await drawCase();
+  });
   for (const f of fields.filter((f) => f.type === "boolean"))
     $(`[name="${f.id}"]`).value = f.value || "";
   on("#metadata", "submit", async (e) => {
@@ -380,8 +497,19 @@ async function emails() {
     return;
   }
   const messages = await api(`/cases/${current.id}/emails`);
+  if (!messages.some((message) => message.id === selectedEmailId))
+    selectedEmailId = messages[0]?.id ?? null;
+  const selected = messages.find((message) => message.id === selectedEmailId);
   $("#case-body").innerHTML =
-    `<div class="toolbar">${has("email.import") ? '<button id="import">Importeer .eml / .msg</button><button id="imap">Importeer via IMAP</button>' : ""}${has("email.send") ? '<button id="send" class="primary">Verstuur vanuit template</button>' : ""}</div>${messages.map((m) => `<details class="card"><summary><strong>${esc(m.subject || "(zonder onderwerp)")}</strong> <span class="tag">${esc(m.status)}</span><p class="muted">${esc(m.sender)} → ${esc(m.recipients)}</p></summary><pre class="email">${esc(m.body)}</pre>${m.direction === "in" ? `<a href="/api/emails/${m.id}/original">Origineel met bijlagen downloaden</a>` : ""}</details>`).join("") || '<div class="empty">Nog geen e-mails in dit dossier.</div>'}`;
+    `<div class="commandbar"><div>${has("email.send") ? '<button id="send" class="primary">＋ Nieuwe e-mail</button>' : ""}${has("email.import") ? '<button id="import">Importeer bestand</button><button id="imap">IMAP ophalen</button>' : ""}</div><div class="commandbar-info">Correspondentie op dossierniveau</div></div><div class="dossier-workspace mail-workspace"><aside class="workspace-tree"><div class="tree-title"><span class="tree-case-icon">D</span><div><strong>${esc(current.number)}</strong><small>${esc(current.title)}</small></div></div><button data-tree-view="metadata">▸ Dossiergegevens</button><button data-tree-view="manager">▸ Documenten</button><div class="tree-group"><button class="tree-parent selected">▾ Correspondentie</button><button class="tree-child selected">Alle berichten <span>${messages.length}</span></button></div></aside><section class="mail-list"><div class="pane-title"><div><strong>E-mailarchief</strong><small>${messages.length} ${messages.length === 1 ? "bericht" : "berichten"}</small></div></div>${messages.map((message) => `<button data-email="${message.id}" class="mail-row ${message.id === selectedEmailId ? "selected" : ""}"><span class="mail-direction">${message.direction === "in" ? "↓" : "↑"}</span><span><strong>${esc(message.subject || "(zonder onderwerp)")}</strong><small>${esc(message.direction === "in" ? message.sender : message.recipients)}</small></span><span><small>${new Date(message.created_at).toLocaleDateString("nl-NL")}</small><em>${esc(message.status)}</em></span></button>`).join("") || '<div class="empty">Nog geen e-mails in dit dossier.</div>'}</section><aside class="mail-preview">${selected ? `<div class="mail-preview-head"><span class="tag">${selected.direction === "in" ? "Ontvangen" : "Verzonden"}</span><h2>${esc(selected.subject || "(zonder onderwerp)")}</h2><dl><dt>Van</dt><dd>${esc(selected.sender)}</dd><dt>Aan</dt><dd>${esc(selected.recipients)}</dd></dl></div><pre class="email">${esc(selected.body)}</pre>${selected.direction === "in" ? `<a class="button" href="/api/emails/${selected.id}/original">Origineel downloaden</a>` : ""}` : '<div class="empty"><strong>Geen bericht geselecteerd</strong></div>'}</aside></div>`;
+  on("[data-tree-view]", "click", async (_, el) => {
+    view = el.dataset.treeView;
+    await drawCase();
+  });
+  on("[data-email]", "click", (_, el) => {
+    selectedEmailId = Number(el.dataset.email);
+    return emails();
+  });
   on("#import", "click", () =>
     modal(
       "E-mail importeren",
@@ -587,4 +715,14 @@ async function admin() {
     });
   });
 }
+document.addEventListener("keydown", async (event) => {
+  if (!current || $("#dialog").open || /INPUT|TEXTAREA|SELECT/.test(event.target.tagName))
+    return;
+  if (event.key === "F4") {
+    event.preventDefault();
+    view = "manager";
+    filter = "";
+    await drawCase();
+  }
+});
 start();

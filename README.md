@@ -192,6 +192,12 @@ Maak samenhangende back-ups van database, configuratie en documenten. Het schema
 
 ## Functionele inrichting
 
+### Dossierwerkplek
+
+De webinterface volgt het werkmodel van NEXTassyst: hoofdmodules bovenaan, subfuncties binnen het geopende dossier en een vaste driedeling van dossierboom, gegevenslijst en eigenschappen/preview. De vormgeving, terminologie en implementatie zijn eigen DoMuS-onderdelen; er zijn geen merkassets of broncode van NEXTassyst opgenomen.
+
+In een dossier opent `F4` de Document Manager. Documentregels zijn selecteerbaar, waarna acties en versiehistorie rechts verschijnen. Bestanden kunnen naar het documentgebied worden gesleept; vóór het uploaden kiest de gebruiker map en categorieën. De Document Manager groepeert versies, terwijl de Dossier Verkenner iedere fysieke versie afzonderlijk toont. Correspondentie gebruikt dezelfde lijst-en-previewwerkwijze.
+
 1. Maak klanten aan in **CRM**.
 2. Maak dossiers aan en selecteer een klant. Een leeg dossiernummer gebruikt de automatische reeks; een eigen nummer krijgt het hoofdsuffix `.00`.
 3. Voeg vanuit een hoofddossier subdossiers toe. Deze krijgen `.01` t/m `.99`, horen bij dezelfde klant en kunnen zelf geen subdossiers bevatten.

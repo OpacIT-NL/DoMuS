@@ -5,20 +5,19 @@
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>DoMuS · Dossierbeheer</title>
     <link rel="stylesheet" href="/style.css" />
+    <link rel="stylesheet" href="/workspace.css" />
     <script defer src="/app.js"></script>
   </head>
   <body>
-    <aside>
-      <a class="brand" href="/">D<span>o</span>MuS<span class="dot">.</span></a>
-      <p class="subtitle">DOCUMENTEN & DOSSIERS</p>
-      <nav id="nav"></nav>
-      <div class="sidebar-foot">
-        Alles op zijn plek.<br /><small>Jouw digitale dossierkast.</small>
-      </div>
+    <aside class="appbar">
+      <a class="brand" href="/" aria-label="DoMuS startpagina">D<span>o</span>MuS<span class="dot">.</span></a>
+      <nav id="nav" aria-label="Hoofdmenu"></nav>
+      <div class="appbar-spacer"></div>
+      <span class="app-version">DOSSIERWERKPLEK</span>
     </aside>
     <main>
       <header>
-        <span>WERKOMGEVING / <b id="crumb">OVERZICHT</b></span>
+        <span class="breadcrumb">WERKOMGEVING <i>/</i> <b id="crumb">OVERZICHT</b></span>
         <div id="account"></div>
       </header>
       <div id="notice" role="status" aria-live="polite"></div>
