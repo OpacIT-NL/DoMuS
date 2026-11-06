@@ -311,7 +311,7 @@ git tag v0.1.0
 git push origin v0.1.0
 ```
 
-Of kies **Actions → Release → Run workflow** en geef een bestaande tag op. De versie uit de tag wordt gebruikt in de servermanifesten en de desktopbuilds. Een tag zoals `v0.2.0-beta.1` maakt een prerelease. Een reeds gepubliceerde release wordt niet overschreven; een onafgemaakte draft kan opnieuw worden uitgevoerd.
+Of kies **Actions → Release → Run workflow** en geef een bestaande tag op. De versie uit de tag wordt gebruikt in de servermanifesten en de desktopbuilds. Een tag zoals `v0.2.0-beta.1` maakt een prerelease. Bij opnieuw uitvoeren worden de pakketbestanden en checksums bij dezelfde release bijgewerkt. Bestaande release notes en de publicatiestatus blijven behouden; een draft wordt gepubliceerd nadat alle uploads slagen.
 
 Downloads:
 
@@ -332,3 +332,5 @@ npm run package:server -- --version 0.2.0 --output dist
 ```
 
 Dit schrijft een zip naar `dist/`. Het pakket gebruikt dezelfde Node.js-code op Windows en Linux; native dependencies worden op de doelserver geïnstalleerd.
+
+Een mislukte run opnieuw uitvoeren gebruikt de oorspronkelijke workflowversie. Om een workflowfix te gebruiken, push je die naar de standaardbranch en start je **Actions → Release → Run workflow** vanaf die branch, met de bestaande versietag als invoer. De pakketbroncode komt nog steeds uit de opgegeven tag.
